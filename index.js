@@ -1,35 +1,15 @@
-import zipCode from './zipCode.js'
-import pcassCode from './pcasCode.js'
+import formatByKey from './lib/format.js';
+import addressCode from './lib/addressCode.js';
+import zipCode from './lib/zipCode.js';
 
 var addressList = []; //地址列表
 var zipCodeList = []; //邮编列表
-/* zipCode = require("./zipCode");
-pcassCode = require("./pcasCode"); */
 //获取地址以及邮编json
-/* const getJson = new Promise((res, rej) => {
-    $.getJSON("./json/pcas-code.json", data_address => {
-        $.getJSON("./json/zip-code.json", data_code => {
-
-            res({
-                'address': data_address,
-                'code': data_code
-            })
-        })
-    })
-})
-
-getJson.then((res) => {
-    addressList = res.address;
-    addressList.forEach(item => {
-        formatAddresList(item, 1, '')
-    })
-    zipCodeList = zipCodeFormat(res.code);
-}) */
-addressList = pcassCode;
+addressList = addressCode;
 addressList.forEach((item) => {
-  formatAddresList(item, 1, "");
+  formatAddressList(item, 1, "");
 });
-zipCodeList = zipCodeFormat(zipCode);
+zipCodeList = zipCode//zipCodeFormat(zipCode);
 
 /**
  * 地址数据处理
@@ -38,7 +18,7 @@ zipCodeList = zipCodeFormat(zipCode);
  * @param province-只有直辖市会处理为  北京市北京市
  * @returns <array>
  */
-function formatAddresList(addressList, index, province) {
+function formatAddressList(addressList, index, province) {
   if (index === 1) {
     //省
     addressList.province = addressList.name;
@@ -65,7 +45,7 @@ function formatAddresList(addressList, index, province) {
   if (addressList.children) {
     index++;
     addressList.children.forEach((res) => {
-      formatAddresList(res, index, addressList);
+      formatAddressList(res, index, addressList);
     });
   }
 }
@@ -96,42 +76,63 @@ var smartObj = {};
  * @param event识别的地址
  * @returns <obj>
  */
-function smart(event) {
-  event = stripscript(event); //过滤特殊字符
-  let obj = {};
-  let copyaddress = JSON.parse(JSON.stringify(event));
-  copyaddress = copyaddress.split(" ");
+var smart = function (event) {
+  
+  
+  event = String(event);
+  /***定制化识别 */
+  event = formatByKey(event);
+  let copy = event;
 
-  copyaddress.forEach((res, index) => {
+  event = stripScript(event); //过滤特殊字符
+  let obj = {};
+  let copyAddress = JSON.parse(JSON.stringify(event));
+  copyAddress = copyAddress.split(" ");
+
+  copyAddress.forEach((res, index) => {
     if (res) {
       if (res.length == 1) {
         res += "XX"; // 过滤掉一位的名字或者地址
       }
-      let addressObj = smatrAddress(res);
+      let addressObj = (res.length>=5 && smatrAddress(res) )||{};
       obj = Object.assign(obj, addressObj);
       if (JSON.stringify(addressObj) === "{}") {
         obj.name = res.replace("XX", "");
       }
     }
   });
-  return obj;
+
+  if (!obj.phone) {
+    let _phone = copy.match(
+      /((\d{2,4}[-_－—])\d{3,8}([-_－—]?\d{3,8})?([-_－—]?\d{1,7})?)|(0?1\d{10})/g
+    );
+    if (_phone && _phone.length > 0) {
+      _phone.forEach((e) => {
+        if (e.length >= 8) {
+          obj.phone = e;
+        }
+      });
+    }
+  }
+return obj;
 }
+window.smart = smart;
+
 
 function smatrAddress(event) {
   smartObj = {};
   let address = event;
   //address=  event.replace(/\s/g, ''); //去除空格
-  address = stripscript(address); //过滤特殊字符
+  address = stripScript(address); //过滤特殊字符
 
   //身份证号匹配
   if (IdentityCodeValid(address)) {
     smartObj.idCard = address;
     address = address.replace(address, "");
   }
-
   //电话匹配
   let phone = address.match(
-    /(86-[1][0-9]{10}) | (86[1][0-9]{10})|([1][0-9]{10})/g
+    /((\d{2,4}[-_－—])\d{3,8}([-_－—]?\d{3,8})?([-_－—]?\d{1,7})?)|(86-[1][0-9]{10}) | (86[1][0-9]{10})|([1][0-9]{10})/g
   );
   if (phone) {
     smartObj.phone = phone[0];
@@ -140,13 +141,27 @@ function smatrAddress(event) {
 
   //邮编匹配
   zipCodeList.forEach((res) => {
-    if (address.indexOf(res) != -1) {
+    if (
+      address.indexOf(res) != -1 &&
+      address.length == 6 &&
+      typeof Number(address) == "number" &&
+      !isNaN(Number(address))
+    ) {
       let num = address.indexOf(res);
       let code = address.slice(num, num + 6);
       smartObj.zipCode = code;
       address = address.replace(code, "");
     }
   });
+  if (
+    !smartObj.zipCode &&
+    address.length == 6 &&
+    typeof Number(address) == "number" &&
+    !isNaN(Number(address))
+  ) {
+    smartObj.zipCode = address;
+    address = address.replace(address, "");
+  }
   let matchAddress = "";
   //省匹配 比如输入北京市朝阳区，会用北  北京  北京市 北京市朝 以此类推在addressList里的province中做匹配，会得到北京市  河北省 天津市等等；
   let matchProvince = []; //粗略匹配上的省份
@@ -180,6 +195,7 @@ function smatrAddress(event) {
       }
     });
   });
+
   if (matchProvince.length != 0) {
     let province = matchProvince.reduce((p, v) => (p.index < v.index ? v : p));
     smartObj.province = province.province;
@@ -257,13 +273,16 @@ function smatrAddress(event) {
     }
     address = address.replace(city.matchValue, "");
   }
-
   //区县查找
   let matchCounty = []; //粗略匹配上的区县
   matchAddress = "";
+  let endcouty = false;
   for (let endIndex = 0; endIndex < address.length; endIndex++) {
     matchAddress = address.slice(0, endIndex + 2);
     addressList.forEach((el) => {
+      if (endcouty) {
+        return;
+      }
       //  if (el.name == smartObj.province) {
       if (
         smartObj.province == "北京市" ||
@@ -274,8 +293,14 @@ function smatrAddress(event) {
         //nothing
       } else {
         el.children.forEach((item) => {
+          if (endcouty) {
+            return;
+          }
           //  if (item.name == smartObj.city) {
           item.children.forEach((res) => {
+            if (endcouty) {
+              return;
+            }
             if (res["county"].indexOf(matchAddress) != -1) {
               //省/市  || 省
               if (smartObj.province) {
@@ -309,6 +334,55 @@ function smatrAddress(event) {
       //  }
     });
   }
+  if (matchCounty.length < 1) {
+    let endcouty = false;
+    for (let endIndex = 0; endIndex < address.length; endIndex++) {
+      matchAddress = address.slice(0, endIndex + 2);
+      addressList.forEach((el) => {
+        if (endcouty) {
+          return;
+        }
+        //  if (el.name == smartObj.province) {
+        if (
+          smartObj.province == "北京市" ||
+          smartObj.province == "天津市" ||
+          smartObj.province == "上海市" ||
+          smartObj.province == "重庆市"
+        ) {
+          //nothing
+        } else {
+          el.children.forEach((item) => {
+            if (endcouty) {
+              return;
+            }
+            //  if (item.name == smartObj.city) {
+            item.children.forEach((res) => {
+              if (endcouty) {
+                return;
+              }
+              if (
+                matchAddress.indexOf(res["county"]) > -1 &&
+                matchAddress.indexOf(smartObj.province)
+              ) {
+                matchCounty.push({
+                  county: res.county,
+                  countyCode: res.code,
+                  city: item.city,
+                  cityCode: item.code,
+                  matchValue: matchAddress,
+                  province: el.province,
+                  provinceCode: el.code,
+                });
+                endcouty = true;
+              }
+            });
+            //  }
+          });
+        }
+        //  }
+      });
+    }
+  }
   //统计筛选初略统计出的区县
   matchCounty.forEach((res) => {
     res.index = 0;
@@ -321,6 +395,7 @@ function smatrAddress(event) {
       }
     });
   });
+
   if (matchCounty.length != 0) {
     let city = matchCounty.reduce((p, v) => (p.index < v.index ? v : p));
     smartObj.county = city.county;
@@ -335,7 +410,6 @@ function smatrAddress(event) {
     }
     address = address.replace(city.matchValue, "");
   }
-
   //街道查找
   let matchStreet = []; //粗略匹配上的街道查
   matchAddress = "";
@@ -350,6 +424,23 @@ function smatrAddress(event) {
           smartObj.province == "重庆市"
         ) {
           //nothing
+          el.children.forEach((element) => {
+            if (element.name == smartObj.city) {
+              element.children.forEach((item) => {
+                if (item.name == smartObj.county) {
+                  item.children.forEach((res) => {
+                    if (res["street"].indexOf(matchAddress) != -1) {
+                      matchStreet.push({
+                        street: res.street,
+                        streetCode: res.code,
+                        matchValue: matchAddress,
+                      });
+                    }
+                  });
+                }
+              });
+            }
+          });
         } else {
           el.children.forEach((element) => {
             if (element.name == smartObj.city) {
@@ -388,27 +479,29 @@ function smatrAddress(event) {
 
   if (matchStreet.length != 0) {
     let city = matchStreet.reduce((p, v) => (p.index < v.index ? v : p));
+    
     smartObj.street = city.street;
     smartObj.streetCode = city.streetCode;
     address = address.replace(city.matchValue, "");
+    
+
   }
   //姓名查找
   if (smartObj.province) {
     smartObj.address = address;
   }
-
   return smartObj;
 }
 ////过滤特殊字符
-function stripscript(s) {
+function stripScript(s) {
   s = s.replace(/(\d{3})-(\d{4})-(\d{4})/g, "$1$2$3");
   s = s.replace(/(\d{3}) (\d{4}) (\d{4})/g, "$1$2$3");
   var pattern = new RegExp(
-    "[`~!@#$^&*()=|{}':;',\\[\\].<>/?~！@#￥……&*（）——|{}【】‘；：”“’。，、？-]"
+    "[`~!@$^&*()=|{}':;',\\[\\].<>/?~！@￥……&*（）——|{}【】‘；：”“’。，、？]"
   );
   var rs = "";
   for (var i = 0; i < s.length; i++) {
-    rs = rs + s.substr(i, 1).replace(pattern, " ");
+    rs = rs + s.substr(i, 1).replace(pattern, "");
   }
   rs = rs.replace(/[\r\n]/g, "");
   return rs;
@@ -488,5 +581,11 @@ function IdentityCodeValid(code) {
   }
   return pass;
 }
-
-export default smart;
+function isJsonString(str) {
+  try {
+    if (typeof JSON.parse(str) == "object") {
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
