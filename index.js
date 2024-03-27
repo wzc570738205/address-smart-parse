@@ -589,3 +589,4 @@ function isJsonString(str) {
   } catch (e) {}
   return false;
 }
+export default smart
