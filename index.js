@@ -1,6 +1,7 @@
 import formatByKey from './lib/format.js';
 import addressCode from './lib/addressCode.js';
 import zipCode from './lib/zipCode.js';
+import ZhAddressParse from './lib/address-parse.min.js'
 
 var addressList = []; //地址列表
 var zipCodeList = []; //邮编列表
@@ -77,7 +78,7 @@ var smartObj = {};
  * @returns <obj>
  */
 var smart = function (event) {
-  
+  let eventCopy = JSON.parse(JSON.stringify(event))
   
   event = String(event);
   /***定制化识别 */
@@ -112,6 +113,25 @@ var smart = function (event) {
           obj.phone = e;
         }
       });
+    }
+  }
+
+  if (!obj.province || !obj.name) {
+    try {
+      let newData = ZhAddressParse(eventCopy, {
+        type: 0,
+        textFilter: ['电話', '電話', '聯系人'],
+      })
+
+      obj.name = newData.name
+      obj.phone = newData.phone
+      obj.province = newData.province
+      obj.city = newData.city
+      obj.county = newData.area
+      obj.address = newData.detail
+      obj.zipCode = newData.postalCode
+    } catch (error) {
+      
     }
   }
 return obj;
