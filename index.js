@@ -522,7 +522,7 @@ function stripScript(s) {
   for (var i = 0; i < s.length; i++) {
     rs = rs + s.substr(i, 1).replace(pattern, " ");
   }
-  rs = rs.replace(/[\r\n]/g, "");
+  rs = rs.replace(/[\r\n]/g, " ");
   return rs;
 }
 
