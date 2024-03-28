@@ -1,6 +1,6 @@
 {
   "name": "address-smart-parse",
-  "version": "2.0.3",
+  "version": "2.0.5",
   "description": "地址智能识别",
   "main": "index.js",
   "scripts": {

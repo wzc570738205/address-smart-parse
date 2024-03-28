@@ -97,7 +97,7 @@ var smart = function (event) {
       let addressObj = (res.length>=5 && smatrAddress(res) )||{};
       obj = Object.assign(obj, addressObj);
       if (JSON.stringify(addressObj) === "{}") {
-        obj.name = res.replace("XX", "");
+        obj.name = res.replace("XX", "") || res;
       }
     }
   });
@@ -116,7 +116,6 @@ var smart = function (event) {
   }
 return obj;
 }
-window.smart = smart;
 
 
 function smatrAddress(event) {
@@ -501,7 +500,7 @@ function stripScript(s) {
   );
   var rs = "";
   for (var i = 0; i < s.length; i++) {
-    rs = rs + s.substr(i, 1).replace(pattern, "");
+    rs = rs + s.substr(i, 1).replace(pattern, " ");
   }
   rs = rs.replace(/[\r\n]/g, "");
   return rs;
