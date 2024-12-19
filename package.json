@@ -1,6 +1,6 @@
 {
   "name": "address-smart-parse",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "description": "地址智能识别",
   "main": "index.js",
   "scripts": {
@@ -13,7 +13,7 @@
   "author": "wangzhichao <570738205@qq.com>",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/wzc570738205/address-smart-parse/issues"
+    "url": "https://github.com/wzc570738205/smartParsePro/issues"
   },
-  "homepage": "https://github.com/wzc570738205/address-smart-parse#readme"
+  "homepage": "https://github.com/wzc570738205/smartParsePro"
 }
