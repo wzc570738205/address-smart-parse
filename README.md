@@ -33,11 +33,37 @@
 ```sh
 npm install address-smart-parse
 ```
-
+> version: < 3.0
 ```js
+/**
+ * smart 解析地址
+ * @param event-识别的地址
+ * @returns <obj>
+ */
 import smart from 'address-smart-parse'
 
 smart("陕西省西安市雁塔区丈八沟街道高新四路高新大都荟710061 刘国良 13593464918 211381198512096810")
+```
+
+> version: >=3.0
+smart(str) 新增参数 address
+
+```js
+/**
+ * smart 解析地址
+ * @param event-识别的地址
+ * @param address-地址列表 数据格式请参考 https://github.com/modood/Administrative-divisions-of-China/blob/master/dist/streets.json
+ * address 可不传，不传则默认识别到省/市/区县 三级信息
+ * @returns <obj>
+ */
+// 使用包自带的地址数据
+import  {smart, address} from 'address-smart-parse'
+smart("陕西省西安市雁塔区丈八沟街道高新四路高新大都荟710061 刘国良 13593464918 211381198512096810", address)
+
+// 使用自己的数据
+import  {smart} from 'address-smart-parse'
+const myAddress = [...]// 数据格式请参考 https://github.com/modood/Administrative-divisions-of-China/blob/master/dist/streets.json
+smart("陕西省西安市雁塔区丈八沟街道高新四路高新大都荟710061 刘国良 13593464918 211381198512096810", myAddress)
 ```
 
 
